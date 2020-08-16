@@ -312,3 +312,4 @@ while gui.running:
     gui.set_image(scene.img)
     
     gui.show()
+    
