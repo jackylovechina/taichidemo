@@ -5,11 +5,10 @@ import taichi_three as t3
 
 ti.init(ti.gpu)
 
-
 # 
-screen_res = (800,400)
+screen_res = (600,400)
 screen_to_world_ratio = 1.0
-bd = (20,15,10)
+bd = (30,15,15)
 boundary = (bd[0]/screen_to_world_ratio,bd[1]/screen_to_world_ratio,bd[2]/screen_to_world_ratio)
 cell_size = 2.51
 cell_recpr = 1.0 / cell_size
@@ -23,11 +22,11 @@ grid_size = (round_up(boundary[0],1),round_up(boundary[1],1),round_up(boundary[2
 # 
 dim = 3   # 维度
 num_particles_x = 15
-num_particles_y = 10
-num_particles_z = 10
+num_particles_y = 15
+num_particles_z = 15
 num_particles = num_particles_x * num_particles_y * num_particles_z 
 max_num_particles_per_cell = 100
-particle_radius = 0.15
+particle_radius = 0.2
 particle_radius_in_world = particle_radius / screen_to_world_ratio
 epsilon = 1e-5
 max_num_neighbors = 100
@@ -120,12 +119,12 @@ def is_in_grid(c):
 
 @ti.func
 def confine_position_to_boundary(p):
-    bmin = particle_radius_in_world
-    bmax = ti.Vector([board_states[None][0],boundary[1],boundary[2]]) - particle_radius_in_world
+    bmin = ti.Vector([ 0 , 0 , 0 ]) - particle_radius_in_world
+    bmax = ti.Vector([board_states[None][0] ,boundary[1],boundary[2]]) - particle_radius_in_world
     for i in ti.static(range(dim)):
         # Use randomness to prevent particles from sticking into each other after clamping
-        if p[i] <=bmin:
-            p[i] = bmin + epsilon * ti.random()
+        if p[i] <=bmin[i]:
+            p[i] = bmin[i] + epsilon * ti.random()
         elif bmax[i] <= p[i]:
             p[i] = bmax[i] - epsilon * ti.random()
 
@@ -143,7 +142,7 @@ def move_board():
     b = board_states[None]
     b[1] += 1.0
     period = 90
-    vel_strength = 3.0
+    vel_strength = 4.0
     if b[1] >= 2 * period:
         b[1] = 0
     b[0] += -ti.sin(b[1] * np.pi / period) * vel_strength * time_delta
@@ -275,8 +274,7 @@ def init_particles():
     
     for i in range(num_particles):
         # print(i)
-        # 
-        np_positions[i] = np.array([i % num_x ,i // (num_x * num_z) ,(i - ((i // (num_x * num_z)) * (num_x * num_z))) // num_x ]) / screen_to_world_ratio * delta + offs
+        np_positions[i] = np.array([i % num_x ,i // (num_x * num_z) ,(i - ((i // (num_x * num_z)) * (num_x * num_z))) // num_x ]) * delta + offs
         #
 
 
@@ -306,10 +304,11 @@ while gui.running:
     move_board()
     run_pdf()
 
-    scene.camera.from_mouse(gui, dis=30)
+    # scene.camera.from_mouse(gui, dis=30)
+    scene.camera.set(pos=[boundary[0] / 2 + 1 , 5 , -30 ],target=[boundary[0] / 2 + 1 , 5 , 0 ],up=[0,1,0])
+    #
+
     scene.render()
-    
     gui.set_image(scene.img)
     
     gui.show()
-    
