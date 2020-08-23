@@ -7,9 +7,11 @@ ti.init(ti.gpu)
 
 # 
 screen_res = (600,400)
+# scene_size = (300,150,150)
 screen_to_world_ratio = 1.0
 bd = (30,15,15)
-boundary = (bd[0]/screen_to_world_ratio,bd[1]/screen_to_world_ratio,bd[2]/screen_to_world_ratio)
+boundary = (bd[0]/screen_to_world_ratio, bd[1]/screen_to_world_ratio, bd[2]/screen_to_world_ratio)
+
 cell_size = 2.51
 cell_recpr = 1.0 / cell_size
 # 
@@ -21,8 +23,8 @@ grid_size = (round_up(boundary[0],1),round_up(boundary[1],1),round_up(boundary[2
 
 # 
 dim = 3   # 维度
-num_particles_x = 15
-num_particles_y = 15
+num_particles_x = 30 
+num_particles_y = 10
 num_particles_z = 15
 num_particles = num_particles_x * num_particles_y * num_particles_z 
 max_num_particles_per_cell = 100
@@ -46,6 +48,8 @@ poly6_factor = 315.0 / 64.0 / np.pi
 spiky_grad_factor = -45.0 / np.pi
 
 # 三维空间数据
+# scene_positions = ti.Vector.field(dim, dtype=ti.f32, shape=num_particles)
+
 old_positions = ti.Vector.field(dim, dtype=ti.f32)
 positions = ti.Vector.field(dim, dtype=ti.f32)
 velocities = ti.Vector.field(dim, dtype=ti.f32)
@@ -142,7 +146,7 @@ def move_board():
     b = board_states[None]
     b[1] += 1.0
     period = 90
-    vel_strength = 4.0
+    vel_strength = 4.5
     if b[1] >= 2 * period:
         b[1] = 0
     b[0] += -ti.sin(b[1] * np.pi / period) * vel_strength * time_delta
@@ -260,6 +264,14 @@ def run_pdf():
     update_velocities()
     #  vorticity/xsph 
 
+# def render():
+#     pos_np = positions.to_numpy()
+#     for pos in pos_np:
+#         for j in range(dim):
+#             # 位置 * 10 / 分辨率
+#             pos[j] *= screen_to_world_ratio / scene_size[j]
+#     scene_positions.from_numpy(pos_np)
+
 
 #初始化球的位置、速度、半径
 def init_particles():
@@ -274,7 +286,7 @@ def init_particles():
     
     for i in range(num_particles):
         # print(i)
-        np_positions[i] = np.array([i % num_x ,i // (num_x * num_z) ,(i - ((i // (num_x * num_z)) * (num_x * num_z))) // num_x ]) * delta + offs
+        np_positions[i] = np.array([i % num_x ,i // (num_x * num_z) ,(i - ((i // (num_x * num_z)) * (num_x * num_z))) // num_x ])  * delta + offs
         #
 
 
@@ -285,7 +297,7 @@ def init_particles():
         for i in range(num_particles):
             radius[i] = particle_radius_in_world
             for c in ti.static(range(dim)):
-                positions[i][c] = p[i,c]
+                positions[i][c] = p[i,c] 
                 velocities[i][c] = v[i,c]
 
     @ti.kernel
@@ -297,17 +309,27 @@ def init_particles():
  
 
 init_particles()
+# 
+# series_prefix = "ply/example.ply"
+# for frame in range(240):
+#     move_board()
+#     run_pdf()
+#     np_pos = np.reshape(positions.to_numpy(),(num_particles,3))
+
+#     writer = ti.PLYWriter(num_vertices=num_particles)
+#     writer.add_vertex_pos(np_pos[:, 0],np_pos[:, 1],np_pos[:, 2])
+#     writer.export_frame_ascii(frame,series_prefix)
+# 
+
+
 gui = ti.GUI('PBF_3D', scene.res)
 while gui.running:
     gui.running = not gui.get_event(ti.GUI.ESCAPE)
-
     move_board()
     run_pdf()
-
-    # scene.camera.from_mouse(gui, dis=30)
-    scene.camera.set(pos=[boundary[0] / 2 + 1 , 5 , -30 ],target=[boundary[0] / 2 + 1 , 5 , 0 ],up=[0,1,0])
+    # scene.camera.from_mouse(gui, dis=1)
+    scene.camera.set(pos=[boundary[0] / 2 + 1 , 10 , -40 ],target=[boundary[0] / 2 + 1 , 5 , 0 ],up=[0,1,0])
     #
-
     scene.render()
     gui.set_image(scene.img)
     
